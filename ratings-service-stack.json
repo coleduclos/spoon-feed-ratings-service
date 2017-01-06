@@ -4,6 +4,10 @@
             "Type" : "String",
             "Description" : "Enter the name of the Lambda function."
         },
+        "LambdaHandler" :{
+            "Type" : "String",
+            "Description" : "Enter the name of the Lambda handler. For example: lambda_handler.lambda_handler"
+        },
         "CodeS3Bucket" : {
             "Type" : "String",
             "Description" : "Enter which S3 bucket holds the code for the Lambda function."
@@ -17,9 +21,9 @@
             "Default" : "128",
             "Description" : "Enter the amount of memory to be allocated for the Lambda function."
         },
-        "LambdaRole" : {
+        "LambdaRoleARN" : {
             "Type" : "String",
-            "Description" : "Enter the IAM role to be assigned to the Lambda function."
+            "Description" : "Enter the IAM role ARN to be assigned to the Lambda function."
         },
         "RuntimeEnvironment" : {
             "Type" : "String",
@@ -74,9 +78,9 @@
                     }
                 },
                 "FunctionName" : { "Ref" : "LambdaFunctionName" },
-                "Handler" : "lambda_handler.lambda_handler",
+                "Handler" : { "Ref" : "LambdaHandler" },
                 "MemorySize" : { "Ref" : "MemorySize" },
-                "Role" : { "Ref" : "LambdaRole" },
+                "Role" : { "Ref" : "LambdaRoleARN" },
                 "Runtime" : { "Ref" : "RuntimeEnvironment" },
                 "Timeout" : { "Ref" : "Timeout" },
                 "VpcConfig" : {
