@@ -1,0 +1,17 @@
+{
+    "Parameters" : {
+        "LambdaFunctionName" : "duclos-app-ratings-service",
+        "CodeS3Bucket" : "duclos-app",
+        "CodeS3Key" : "lambda-functions/ratings-service",
+        "MemorySize" : "128",
+        "LambdaRole" : "duclos-app-lambda-role",
+        "RuntimeEnvironment" : "python2.7",
+        "Timeout" : "10",
+        "Subnets" : [ "subnet-66e5d110" ],
+        "SecurityGroups" : [ "sg-aedbfcd7" ],
+        "SQSQueueName" : "duclos-app-similarity-queue",
+        "DynamoDBTableName" : "duclos-app-user-ratings",
+        "DynamoDBPrimaryKey" : "user-id",
+        "DynamoDBSortKey" : "restaurant-id"
+    }
+}
