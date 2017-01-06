@@ -1,0 +1,13 @@
+version: 0.1
+
+phases:
+    build:
+        commands:
+            - echo Build started on `date`
+            - echo Uploading Lambda function to s3://$S3_PATH         
+            - aws s3 cp $LAMBDA_HANDLER_FILE s3://$S3_PATH   
+artifacts:
+    files:
+        - ratings-service-stack.json
+        - ratings-service-stack-config.json
+    discard-paths: yes
