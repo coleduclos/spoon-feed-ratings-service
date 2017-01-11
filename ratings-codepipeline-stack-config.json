@@ -1,0 +1,18 @@
+{
+    "Parameters" : {
+        "Owner" : "cole.duclos",
+        "ServiceName" : "duclos-app-ratings-service",
+        "BuildEnvComputeType" : "BUILD_GENERAL1_SMALL",
+        "BuildEnvImage" : "aws/codebuild/docker:1.12.1",
+        "LambdaHandlerFile" : "ratings-service-lambda.py",
+        "LambdaCodeS3Path" : "duclos-app/lambda-functions/",
+        "LambdaZipFileName" : "ratings-service-lambda.zip",
+        "GitHubUser" : "coleduclos",
+        "GitHubRepoName" : "spoon-feed-ratings-service",
+        "GitHubToken" : "",
+        "GitHubBranchName" : "master",
+        "BuildArtifactsLocation" : "sf-te-codebuild-artifacts",
+        "DeployStackTemplateFile" : "ratings-service-stack.json",
+        "DeployStackTemplateConfFile" : "ratings-service-stack-config.json"
+    }
+}
