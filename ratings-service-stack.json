@@ -1,12 +1,16 @@
 {
     "Parameters" : {
-        "LambdaFunctionName" :{
+        "Owner" :{
             "Type" : "String",
-            "Description" : "Enter the name of the Lambda function."
+            "Description" : "Enter the owner of the stack."
         },
-        "LambdaHandler" :{
+        "AppName" :{
             "Type" : "String",
-            "Description" : "Enter the name of the Lambda handler. For example: lambda_handler.lambda_handler"
+            "Description" : "Enter the application name associated with the stack."
+        },
+        "ServiceName" : {
+            "Type" : "String",
+            "Description" : "Enter the name of the service associated with the stack"
         },
         "CodeS3Bucket" : {
             "Type" : "String",
@@ -21,10 +25,6 @@
             "Default" : "128",
             "Description" : "Enter the amount of memory to be allocated for the Lambda function."
         },
-        "LambdaRoleARN" : {
-            "Type" : "String",
-            "Description" : "Enter the IAM role ARN to be assigned to the Lambda function."
-        },
         "RuntimeEnvironment" : {
             "Type" : "String",
             "Default" : "python2.7",
@@ -36,32 +36,158 @@
             "Default" : "3",
             "Description" : "Enter the timeout period (in seconds) for the Lambda function."
         },
+        "VPC" : {
+            "Type" : "AWS::EC2::VPC::Id",
+            "Description" : "Select the VPC to deploy the lambda function to."
+        },
         "Subnets" : {
             "Type" : "List<AWS::EC2::Subnet::Id>",
             "Description" : "Select the subnets to deploy the Lambda function to."
-        },
-        "SecurityGroups" : {
-            "Type" : "List<AWS::EC2::SecurityGroup::Id>",
-            "Description" : "Select the security groups to attach to the Lambda function."
-        },
-        "SQSQueueName" : {
-            "Type" : "String",
-            "Description" : "Enter the SQS queue name to relay the messages to."
-        },
-        "DynamoDBTableName" : {
-            "Type" : "String",
-            "Description" : "Enter the name of the DynamoDB table."
-        },
-        "DynamoDBPrimaryKey" : {
-            "Type" : "String",
-            "Description" : "Enter the primary key of the DynamoDB table."
-        },
-        "DynamoDBSortKey" : {
-            "Type" : "String",
-            "Description" : "Enter the sort key of the DynamoDB table."
         }
     },
     "Resources" : {
+
+        "LambdaIAMRole" : {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+                "AssumeRolePolicyDocument" : {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Principal": {
+                                "Service": "lambda.amazonaws.com"
+                            },
+                            "Action": "sts:AssumeRole"
+                        }
+                    ]
+                },
+                "ManagedPolicyArns": [ 
+                    "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+                    "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+                ],
+                "Path": { "Fn::Join" : [ "", [ "/", { "Ref" : "AppName" }, "/" ] ] },
+                "RoleName": { "Fn::Join" : [ "-", [ { "Ref" : "AppName" }, { "Ref" : "ServiceName" }, "service-lambda-role" ] ] }
+          }
+        },
+        "LambdaIAMPolicy" : {
+          "Type" : "AWS::IAM::Policy",
+          "Properties" : { 
+                "PolicyDocument" : {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Sid": "Stmt1479759591000",
+                            "Effect": "Allow",
+                            "Action": [
+                                "dynamodb:DeleteItem",
+                                "dynamodb:PutItem",
+                                "dynamodb:Query",
+                                "dynamodb:UpdateItem"
+                            ],
+                            "Resource": [
+                                "*"
+                            ]
+                        }
+                    ]
+                },
+                "PolicyName" : { "Fn::Join" : [ "-", [ { "Ref" : "AppName" }, { "Ref" : "ServiceName" }, "service-lambda-policy" ] ] },
+                "Roles" : [ { "Ref" : "LambdaIAMRole" }]
+            }
+        },
+        "RestaurantsDynamoDBTable" : {
+            "Type" : "AWS::DynamoDB::Table",
+            "Properties" : {
+                "TableName" : { "Fn::Join" : [ "", [ { "Ref" : "AppName" }, "-ratings" ] ] },
+                "KeySchema" : [ 
+                        {
+                            "AttributeName" : "user-id",
+                            "KeyType" : "HASH"
+                        },
+                        {
+                            "AttributeName" : "restaurant-id",
+                            "KeyType" : "RANGE"
+                        }
+                ],
+                "ProvisionedThroughput" : {
+                   "ReadCapacityUnits" : 5,
+                   "WriteCapacityUnits" : 5
+                },
+                "AttributeDefinitions" : [
+                    {
+                        "AttributeName" : "user-id",
+                        "AttributeType" : "S"
+                    }, 
+                    {
+                        "AttributeName" : "restaurant-id",
+                        "AttributeType" : "S"
+                    },
+                    {
+                        "AttributeName" : "rating-value",
+                        "AttributeType" : "N"
+                    }
+                ],
+                "GlobalSecondaryIndexes" : [ 
+                    {
+                        "IndexName" : "restaurant-id-rating-value-index",
+                        "KeySchema" : [ 
+                            {
+                                "AttributeName" : "restaurant-id",
+                                "KeyType" : "HASH"
+                            },
+                            {
+                                "AttributeName" : "rating-value",
+                                "KeyType" : "RANGE"
+                            }
+                        ],                           
+                        "Projection" : {
+                            "ProjectionType" : "ALL"
+                        },
+                        "ProvisionedThroughput" : {
+                            "ReadCapacityUnits" : 5,
+                            "WriteCapacityUnits" : 5
+                        },
+                    },
+                    {
+                        "IndexName" : "user-id-rating-value-index",
+                        "KeySchema" : [ 
+                            {
+                                "AttributeName" : "user-id",
+                                "KeyType" : "HASH"
+                            },
+                            {
+                                "AttributeName" : "rating-value",
+                                "KeyType" : "RANGE"
+                            }
+                        ],                           
+                        "Projection" : {
+                            "ProjectionType" : "ALL"
+                        },
+                        "ProvisionedThroughput" : {
+                            "ReadCapacityUnits" : 5,
+                            "WriteCapacityUnits" : 5
+                        },
+                    }
+                ]
+            }
+        },
+        "SecurityGroup" : {
+            "Type" : "AWS::EC2::SecurityGroup",
+            "Properties" : {
+                "GroupDescription" : { "Fn::Join" : [ "-", [ { "Ref" : "AppName" }, { "Ref" : "ServiceName" }, "service-sg" ] ] },
+                "Tags" :  [ 
+                    {
+                        "Key" : "Owner",
+                        "Value" : { "Ref" : "Owner" }
+                    },
+                    {
+                        "Key" : "Name",
+                        "Value" : { "Fn::Join" : [ "-", [ { "Ref" : "AppName" }, { "Ref" : "ServiceName" }, "service-sg" ] ] }
+                    }
+                ],
+                "VpcId" : { "Ref" : "VPC" }
+          }
+        },
         "LambdaFunction" : {
             "Type" : "AWS::Lambda::Function",
             "Properties" : {
@@ -69,22 +195,14 @@
                     "S3Bucket": { "Ref" : "CodeS3Bucket"},
                     "S3Key": { "Ref" : "CodeS3Key" }
                 },
-                "Environment" : { 
-                    "Variables" : {
-                        "queue_name" : { "Ref" : "SQSQueueName" },
-                        "user_ratings_dynamo_table_name" : { "Ref" : "DynamoDBTableName" },
-                        "user_ratings_dynamo_pkey" : { "Ref" : "DynamoDBPrimaryKey" },
-                        "user_ratings_dynamo_skey" : { "Ref" : "DynamoDBSortKey" }
-                    }
-                },
-                "FunctionName" : { "Ref" : "LambdaFunctionName" },
-                "Handler" : { "Ref" : "LambdaHandler" },
+                "FunctionName" : { "Fn::Join" : [ "-", [ { "Ref" : "AppName" }, { "Ref" : "ServiceName" }, "service" ] ] },
+                "Handler" : { "Fn::Join" : [ "-", [ { "Ref" : "ServiceName" }, "service-lambda.lambda_handler" ] ] },
                 "MemorySize" : { "Ref" : "MemorySize" },
-                "Role" : { "Ref" : "LambdaRoleARN" },
+                "Role" : {"Fn::GetAtt" : ["LambdaIAMRole", "Arn"] },
                 "Runtime" : { "Ref" : "RuntimeEnvironment" },
                 "Timeout" : { "Ref" : "Timeout" },
                 "VpcConfig" : {
-                    "SecurityGroupIds" : { "Ref" : "SecurityGroups" },
+                    "SecurityGroupIds" : [{ "Ref" : "SecurityGroup" }],
                     "SubnetIds" : { "Ref" : "Subnets" }
                 }
             }
