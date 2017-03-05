@@ -95,7 +95,7 @@
                 "Roles" : [ { "Ref" : "LambdaIAMRole" }]
             }
         },
-        "RestaurantsDynamoDBTable" : {
+        "RatingsDynamoDBTable" : {
             "Type" : "AWS::DynamoDB::Table",
             "Properties" : {
                 "TableName" : { "Fn::Join" : [ "", [ { "Ref" : "AppName" }, "-ratings" ] ] },
@@ -112,6 +112,9 @@
                 "ProvisionedThroughput" : {
                    "ReadCapacityUnits" : 5,
                    "WriteCapacityUnits" : 5
+                },
+                "StreamSpecification" : {
+                    "StreamViewType" : "NEW_IMAGE"
                 },
                 "AttributeDefinitions" : [
                     {
@@ -195,6 +198,13 @@
                     "S3Bucket": { "Ref" : "CodeS3Bucket"},
                     "S3Key": { "Ref" : "CodeS3Key" }
                 },
+                "Environment" : {
+                    "Variables" : {
+                        "ratings_dynamo_table_name" : { "Fn::Join" : [ "", [ { "Ref" : "AppName" }, "-ratings" ] ] },
+                        "ratings_dynamo_pkey" : "user-id",
+                        "ratings_dynamo_skey" : "restaurant-id",
+                    }
+                },
                 "FunctionName" : { "Fn::Join" : [ "-", [ { "Ref" : "AppName" }, { "Ref" : "ServiceName" }, "service" ] ] },
                 "Handler" : { "Fn::Join" : [ "-", [ { "Ref" : "ServiceName" }, "service-lambda.lambda_handler" ] ] },
                 "MemorySize" : { "Ref" : "MemorySize" },
@@ -205,6 +215,15 @@
                     "SecurityGroupIds" : [{ "Ref" : "SecurityGroup" }],
                     "SubnetIds" : { "Ref" : "Subnets" }
                 }
+            }
+        },
+        "LambdaInvokePermission": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+                "FunctionName" : { "Fn::GetAtt" : ["LambdaFunction", "Arn"] },
+                "Action": "lambda:InvokeFunction",
+                "Principal": "apigateway.amazonaws.com",
+                "SourceAccount": { "Ref" : "AWS::AccountId" }
             }
         }
     }

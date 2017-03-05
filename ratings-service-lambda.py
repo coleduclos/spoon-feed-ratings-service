@@ -4,10 +4,9 @@ import os
 
 print('Loading function')
 
-user_ratings_dynamo_table_name = os.environ['user_ratings_dynamo_table_name']
-queue_name = os.environ['queue_name']
-user_ratings_dynamo_pkey = os.environ['user_ratings_dynamo_pkey']
-user_ratings_dynamo_skey = os.environ['user_ratings_dynamo_skey']
+ratings_dynamo_table_name = os.environ['ratings_dynamo_table_name']
+ratings_dynamo_pkey = os.environ['ratings_dynamo_pkey']
+ratings_dynamo_skey = os.environ['ratings_dynamo_skey']
 
 def respond(err, res=None):
     return {
@@ -24,8 +23,8 @@ def lambda_handler(event, context):
     operations = {
         'DELETE': lambda dynamo, x: dynamo.delete_item(Key=
             {
-                user_ratings_dynamo_pkey : x[user_ratings_dynamo_pkey],
-                user_ratings_dynamo_skey : x[user_ratings_dynamo_skey]
+                ratings_dynamo_pkey : x[ratings_dynamo_pkey],
+                ratings_dynamo_skey : x[ratings_dynamo_skey]
             }),
         'GET': lambda dynamo, x: dynamo.scan(Item=x),
         'POST': lambda dynamo, x: dynamo.put_item(Item=x),
@@ -37,16 +36,12 @@ def lambda_handler(event, context):
     if operation in operations:
         print event['body']
         payload = event['queryStringParameters'] if operation == 'GET' else json.loads(event['body'])
-        dynamo = boto3.resource('dynamodb').Table(user_ratings_dynamo_table_name)
+        dynamo = boto3.resource('dynamodb').Table(ratings_dynamo_table_name)
         rating = {}
         rating['user-id'] = payload['user-id']
         rating['restaurant-id'] = payload['restaurant']['restaurant-id']
         rating['rating-value'] = payload['rating-value']
-        operations[operation](dynamo, rating)
-
-        sqs = boto3.resource('sqs')
-        queue = sqs.get_queue_by_name(QueueName=queue_name)
-        response = queue.send_message(MessageBody=json.dumps(event))
+        response = operations[operation](dynamo, rating)
 
         return respond(None, response)
 
