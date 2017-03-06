@@ -216,15 +216,6 @@
                     "SubnetIds" : { "Ref" : "Subnets" }
                 }
             }
-        },
-        "LambdaInvokePermission": {
-            "Type": "AWS::Lambda::Permission",
-            "Properties": {
-                "FunctionName" : { "Fn::GetAtt" : ["LambdaFunction", "Arn"] },
-                "Action": "lambda:InvokeFunction",
-                "Principal": "apigateway.amazonaws.com",
-                "SourceAccount": { "Ref" : "AWS::AccountId" }
-            }
         }
     }
 }
