@@ -2,6 +2,8 @@ import boto3
 import json
 import os
 
+from neo4j.v1 import GraphDatabase, basic_auth
+
 print('Loading function')
 
 ratings_dynamo_table_name = os.environ['ratings_dynamo_table_name']
@@ -18,7 +20,7 @@ def respond(err, res=None):
         },
     }
 
-def lambda_handler(event, context):
+def api_lambda_handler(event, context):
     print ('Lambda Event Handler: duclos-app-rating')
     operations = {
         'DELETE': lambda dynamo, x: dynamo.delete_item(Key=
@@ -47,3 +49,15 @@ def lambda_handler(event, context):
 
     else:
         return respond(ValueError('Unsupported method "{}"'.format(operation)))
+
+def dynamodb_lambda_handler(event, context):
+    # Get the credentials for DB
+    s3_object = config.s3.get_object(Bucket=os.environ['secrets_s3_bucket'], Key=os.environ['db_secret_s3_key'])
+    db_creds = json.load(s3_object['Body'])
+
+    neo4j = GraphDatabase.driver(db_creds.connection, auth=basic_auth(db_creds.username, db_creds.password))
+
+    for record in event['Records']:
+        print(record['eventID'])
+        print(record['eventName'])       
+    print('Successfully processed %s records.' % str(len(event['Records'])))

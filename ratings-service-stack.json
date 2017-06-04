@@ -20,6 +20,10 @@
             "Type" : "String",
             "Description" : "Enter the S3 key for the code of the Lambda function."
         },
+        "DBSecretKey" : {
+            "Type" : "String",
+            "Description" : "Enter the S3 key for the secrets to connect to the DB."
+        },
         "MemorySize" : {
             "Type" : "Number",
             "Default" : "128",
@@ -47,7 +51,7 @@
     },
     "Resources" : {
 
-        "LambdaIAMRole" : {
+        "APILambdaIAMRole" : {
             "Type": "AWS::IAM::Role",
             "Properties": {
                 "AssumeRolePolicyDocument" : {
@@ -67,10 +71,33 @@
                     "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
                 ],
                 "Path": { "Fn::Join" : [ "", [ "/", { "Ref" : "AppName" }, "/" ] ] },
-                "RoleName": { "Fn::Join" : [ "-", [ { "Ref" : "AppName" }, { "Ref" : "ServiceName" }, "service-lambda-role" ] ] }
+                "RoleName": { "Fn::Join" : [ "-", [ { "Ref" : "AppName" }, { "Ref" : "ServiceName" }, "api-service-lambda-role" ] ] }
           }
         },
-        "LambdaIAMPolicy" : {
+        "DynamoDBLambdaIAMRole" : {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+                "AssumeRolePolicyDocument" : {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Principal": {
+                                "Service": "lambda.amazonaws.com"
+                            },
+                            "Action": "sts:AssumeRole"
+                        }
+                    ]
+                },
+                "ManagedPolicyArns": [ 
+                    "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+                    "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+                ],
+                "Path": { "Fn::Join" : [ "", [ "/", { "Ref" : "AppName" }, "/" ] ] },
+                "RoleName": { "Fn::Join" : [ "-", [ { "Ref" : "AppName" }, { "Ref" : "ServiceName" }, "dynamodb-service-lambda-role" ] ] }
+          }
+        },
+        "APILambdaIAMPolicy" : {
           "Type" : "AWS::IAM::Policy",
           "Properties" : { 
                 "PolicyDocument" : {
@@ -91,8 +118,44 @@
                         }
                     ]
                 },
-                "PolicyName" : { "Fn::Join" : [ "-", [ { "Ref" : "AppName" }, { "Ref" : "ServiceName" }, "service-lambda-policy" ] ] },
-                "Roles" : [ { "Ref" : "LambdaIAMRole" }]
+                "PolicyName" : { "Fn::Join" : [ "-", [ { "Ref" : "AppName" }, { "Ref" : "ServiceName" }, "api-service-lambda-policy" ] ] },
+                "Roles" : [ { "Ref" : "APILambdaIAMRole" }]
+            }
+        },
+        "DynamoDBLambdaIAMPolicy" : {
+          "Type" : "AWS::IAM::Policy",
+          "Properties" : { 
+                "PolicyDocument" : {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Sid": "Stmt1479759591000",
+                            "Effect": "Allow",
+                            "Action": [
+                                "dynamodb:DeleteItem",
+                                "dynamodb:PutItem",
+                                "dynamodb:Query",
+                                "dynamodb:UpdateItem"
+                            ],
+                            "Resource": [
+                                "*"
+                            ]
+                        },
+                        {
+                            "Sid": "Stmt1479759591001",
+                            "Effect": "Allow",
+                            "Action": [
+                                "s3:GetObject"
+                            ],
+                            "Resource": [
+                                { "Fn::Join" : [ "", [ "arn:aws:s3:::", { "Ref" : "CodeS3Bucket" }, "/", { "Ref" : "DBSecretKey" } ] ] }
+                            ]
+                        },
+
+                    ]
+                },
+                "PolicyName" : { "Fn::Join" : [ "-", [ { "Ref" : "AppName" }, { "Ref" : "ServiceName" }, "dynamodb-service-lambda-policy" ] ] },
+                "Roles" : [ { "Ref" : "DynamoDBLambdaIAMRole" }]
             }
         },
         "RatingsDynamoDBTable" : {
@@ -174,10 +237,10 @@
                 ]
             }
         },
-        "SecurityGroup" : {
+        "APISecurityGroup" : {
             "Type" : "AWS::EC2::SecurityGroup",
             "Properties" : {
-                "GroupDescription" : { "Fn::Join" : [ "-", [ { "Ref" : "AppName" }, { "Ref" : "ServiceName" }, "service-sg" ] ] },
+                "GroupDescription" : { "Fn::Join" : [ "-", [ { "Ref" : "AppName" }, { "Ref" : "ServiceName" }, "api-service-sg" ] ] },
                 "Tags" :  [ 
                     {
                         "Key" : "Owner",
@@ -185,13 +248,30 @@
                     },
                     {
                         "Key" : "Name",
-                        "Value" : { "Fn::Join" : [ "-", [ { "Ref" : "AppName" }, { "Ref" : "ServiceName" }, "service-sg" ] ] }
+                        "Value" : { "Fn::Join" : [ "-", [ { "Ref" : "AppName" }, { "Ref" : "ServiceName" }, "api-service-sg" ] ] }
                     }
                 ],
                 "VpcId" : { "Ref" : "VPC" }
           }
         },
-        "LambdaFunction" : {
+        "DynamoDBSecurityGroup" : {
+            "Type" : "AWS::EC2::SecurityGroup",
+            "Properties" : {
+                "GroupDescription" : { "Fn::Join" : [ "-", [ { "Ref" : "AppName" }, { "Ref" : "ServiceName" }, "dynamodb-service-sg" ] ] },
+                "Tags" :  [ 
+                    {
+                        "Key" : "Owner",
+                        "Value" : { "Ref" : "Owner" }
+                    },
+                    {
+                        "Key" : "Name",
+                        "Value" : { "Fn::Join" : [ "-", [ { "Ref" : "AppName" }, { "Ref" : "ServiceName" }, "dynamodb-service-sg" ] ] }
+                    }
+                ],
+                "VpcId" : { "Ref" : "VPC" }
+          }
+        },
+        "APILambdaFunction" : {
             "Type" : "AWS::Lambda::Function",
             "Properties" : {
                 "Code": {
@@ -205,14 +285,39 @@
                         "ratings_dynamo_skey" : "restaurant-id",
                     }
                 },
-                "FunctionName" : { "Fn::Join" : [ "-", [ { "Ref" : "AppName" }, { "Ref" : "ServiceName" }, "service" ] ] },
-                "Handler" : { "Fn::Join" : [ "-", [ { "Ref" : "ServiceName" }, "service-lambda.lambda_handler" ] ] },
+                "FunctionName" : { "Fn::Join" : [ "-", [ { "Ref" : "AppName" }, { "Ref" : "ServiceName" }, "api-service" ] ] },
+                "Handler" : { "Fn::Join" : [ "-", [ { "Ref" : "ServiceName" }, "service-lambda.api_lambda_handler" ] ] },
                 "MemorySize" : { "Ref" : "MemorySize" },
-                "Role" : {"Fn::GetAtt" : ["LambdaIAMRole", "Arn"] },
+                "Role" : {"Fn::GetAtt" : ["APILambdaIAMRole", "Arn"] },
                 "Runtime" : { "Ref" : "RuntimeEnvironment" },
                 "Timeout" : { "Ref" : "Timeout" },
                 "VpcConfig" : {
-                    "SecurityGroupIds" : [{ "Ref" : "SecurityGroup" }],
+                    "SecurityGroupIds" : [{ "Ref" : "APISecurityGroup" }],
+                    "SubnetIds" : { "Ref" : "Subnets" }
+                }
+            }
+        },
+        "DynamoDBLambdaFunction" : {
+            "Type" : "AWS::Lambda::Function",
+            "Properties" : {
+                "Code": {
+                    "S3Bucket": { "Ref" : "CodeS3Bucket"},
+                    "S3Key": { "Ref" : "CodeS3Key" }
+                },
+                "Environment" : {
+                    "Variables" : {
+                        "secrets_s3_bucket" : { "Ref" : "CodeS3Bucket"},
+                        "db_secret_s3_key" : { "Ref" : "DBSecretKey" }
+                    }
+                },
+                "FunctionName" : { "Fn::Join" : [ "-", [ { "Ref" : "AppName" }, { "Ref" : "ServiceName" }, "dynamodb-service" ] ] },
+                "Handler" : { "Fn::Join" : [ "-", [ { "Ref" : "ServiceName" }, "service-lambda.dynamodb_lambda_handler" ] ] },
+                "MemorySize" : { "Ref" : "MemorySize" },
+                "Role" : {"Fn::GetAtt" : ["DynamoDBLambdaIAMRole", "Arn"] },
+                "Runtime" : { "Ref" : "RuntimeEnvironment" },
+                "Timeout" : { "Ref" : "Timeout" },
+                "VpcConfig" : {
+                    "SecurityGroupIds" : [{ "Ref" : "DynamoDBSecurityGroup" }],
                     "SubnetIds" : { "Ref" : "Subnets" }
                 }
             }
