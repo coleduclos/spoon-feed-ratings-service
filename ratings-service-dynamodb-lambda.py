@@ -13,8 +13,14 @@ def lambda_handler(event, context):
     db_creds = json.load(s3_object['Body'])
 
     neo4j = GraphDatabase.driver(db_creds['connection'], auth=basic_auth(db_creds['username'], db_creds['password']))
+    session = neo4j.session()
 
     for record in event['Records']:
-        print(record)
-              
+        rating = record['dynamodb']['NewImage']
+        print('Creating restaurant node in DB, restuarant-id: {}'.format(rating['restaurant-id']))
+        session.run("CREATE (a:restaurant {id: {id}})",
+              {'id': rating['restaurant-id']['S']})
+
+    session.close()
+
     print('Successfully processed %s records.' % str(len(event['Records'])))
