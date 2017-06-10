@@ -21,7 +21,6 @@ def respond(err, res=None):
     }
 
 def api_lambda_handler(event, context):
-    print ('Lambda Event Handler: duclos-app-rating')
     operations = {
         'DELETE': lambda dynamo, x: dynamo.delete_item(Key=
             {
@@ -34,9 +33,9 @@ def api_lambda_handler(event, context):
     }
 
     operation = event['httpMethod']
-
+    print ('{} Lambda Event Handler: spoon-feed-ratings-service API handler'.format(operation))
     if operation in operations:
-        print event['body']
+        print(event['body'])
         payload = event['queryStringParameters'] if operation == 'GET' else json.loads(event['body'])
         dynamo = boto3.resource('dynamodb').Table(ratings_dynamo_table_name)
         rating = {}
@@ -44,7 +43,7 @@ def api_lambda_handler(event, context):
         rating['restaurant-id'] = payload['restaurant']['restaurant-id']
         rating['rating-value'] = payload['rating-value']
         response = operations[operation](dynamo, rating)
-
+        print ('Returning the following response: {}'.format(response))
         return respond(None, response)
 
     else:
