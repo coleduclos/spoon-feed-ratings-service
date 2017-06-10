@@ -133,7 +133,11 @@
                                 "dynamodb:DeleteItem",
                                 "dynamodb:PutItem",
                                 "dynamodb:Query",
-                                "dynamodb:UpdateItem"
+                                "dynamodb:UpdateItem",
+                                "dynamodb:DescribeStream",
+                                "dynamodb:GetRecords",
+                                "dynamodb:GetShardIterator",
+                                "dynamodb:ListStreams"
                             ],
                             "Resource": [
                                 "*"
@@ -283,7 +287,7 @@
                     }
                 },
                 "FunctionName" : { "Fn::Join" : [ "-", [ { "Ref" : "AppName" }, { "Ref" : "ServiceName" }, "api-service" ] ] },
-                "Handler" : { "Fn::Join" : [ "-", [ { "Ref" : "ServiceName" }, "service-lambda.api_lambda_handler" ] ] },
+                "Handler" : { "Fn::Join" : [ "-", [ { "Ref" : "ServiceName" }, "service-api-lambda.lambda_handler" ] ] },
                 "MemorySize" : { "Ref" : "MemorySize" },
                 "Role" : {"Fn::GetAtt" : ["APILambdaIAMRole", "Arn"] },
                 "Runtime" : { "Ref" : "RuntimeEnvironment" },
@@ -308,7 +312,7 @@
                     }
                 },
                 "FunctionName" : { "Fn::Join" : [ "-", [ { "Ref" : "AppName" }, { "Ref" : "ServiceName" }, "dynamodb-service" ] ] },
-                "Handler" : { "Fn::Join" : [ "-", [ { "Ref" : "ServiceName" }, "service-lambda.dynamodb_lambda_handler" ] ] },
+                "Handler" : { "Fn::Join" : [ "-", [ { "Ref" : "ServiceName" }, "service-dynamodb-lambda.lambda_handler" ] ] },
                 "MemorySize" : { "Ref" : "MemorySize" },
                 "Role" : {"Fn::GetAtt" : ["DynamoDBLambdaIAMRole", "Arn"] },
                 "Runtime" : { "Ref" : "RuntimeEnvironment" },
@@ -317,6 +321,16 @@
                     "SecurityGroupIds" : [{ "Ref" : "DynamoDBSecurityGroup" }],
                     "SubnetIds" : { "Ref" : "Subnets" }
                 }
+            }
+        },
+        "RatingsDynamoDBTrigger" : {
+            "Type" : "AWS::Lambda::EventSourceMapping",
+            "Properties" : {
+                "BatchSize" : 100,
+                "Enabled" : "True",
+                "EventSourceArn" : { "Fn::GetAtt" : ["RatingsDynamoDBTable", "StreamArn"] },
+                "FunctionName" : { "Fn::GetAtt" : ["DynamoDBLambdaFunction", "Arn"] },
+                "StartingPosition" : "TRIM_HORIZON"
             }
         }
     }
