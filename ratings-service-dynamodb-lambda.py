@@ -6,6 +6,15 @@ from neo4j.v1 import GraphDatabase, basic_auth
 
 print('Loading function')
 
+create_relationship_str = """MERGE (r:Restaurant {{restaurant_id: '{restaurant_id}'}})
+    MERGE (u:User {{user_id: '{user_id}'}})
+    MERGE (u)-[:{relationship}]-(r)"""
+
+delete_relationship_str = """MATCH (u:User {{user_id: '{user_id}'}})-[k]-(r:Restaurant {{restaurant_id: '{restaurant_id}'}}) 
+    DELETE k"""
+
+relationship_map = { '0' : 'DISLIKES', '1' : 'LIKES'}
+
 def lambda_handler(event, context):
     # Get the credentials for DB
     s3 = boto3.client('s3')
@@ -16,10 +25,21 @@ def lambda_handler(event, context):
     session = neo4j.session()
 
     for record in event['Records']:
-        rating = record['dynamodb']['NewImage']
-        print('Creating restaurant node in DB, restuarant-id: {}'.format(rating['restaurant-id']))
-        session.run("CREATE (a:restaurant {id: {id}})",
-              {'id': rating['restaurant-id']['S']})
+        if 'NewImage' in record['dynamodb']:
+            rating = record['dynamodb']['NewImage']
+            user_id = rating['user-id']['S']
+            restaurant_id = rating['restaurant-id']['S']
+            rating_val = rating['rating-value']['N']
+            relationship = relationship_map[rating_val]
+            params = { 'restaurant_id' : restaurant_id, 'user_id' : user_id, 'relationship' : relationship }
+            
+            command = delete_relationship_str.format(**params)
+            print('Deleting old relationship between {} & {} , restuarant-id'.format(user_id, restaurant_id))
+            session.run(command)
+            
+            command = create_relationship_str.format(**params)
+            print('Creating relationship {} - {} - {}'.format(user_id, relationship, restaurant_id))
+            session.run(command)
 
     session.close()
 
